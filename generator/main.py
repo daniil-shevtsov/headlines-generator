@@ -24,8 +24,8 @@ class Parameters:
 
 def get_parameters():
     return Parameters(
-        max_features=5,
-        max_len=15,
+        max_features=1000,
+        max_len=20,
         epochs=3,
         start=START,
         end=END
@@ -81,7 +81,8 @@ def read_data():
     return data
 
 
-def format_data(data, max_features, maxlen, shuffle=False):
+def format_data(raw_data, max_features, maxlen, shuffle=False):
+    data = raw_data.copy()
     if shuffle:
         data = data.sample(frac=1).reset_index(drop=True)
 
@@ -168,8 +169,9 @@ def generate_text(input_text, model, idx_to_words, tokenizer, max_len, n=7, temp
         preds = model.predict(tokenized_input, verbose=0)[0]
         pred_idx = sample(preds, temp=temp)
         pred_word = idx_to_words[pred_idx]
-
+        print("pred_idx: ", pred_idx, "pred_word: ", pred_word)
         if pred_word == END:
+            print("return sent: ", sent)
             return sent
 
         sent += ' ' + pred_word
