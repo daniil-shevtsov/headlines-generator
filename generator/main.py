@@ -24,7 +24,7 @@ class Parameters:
 
 def get_parameters():
     return Parameters(
-        max_features=1000,
+        max_features=10,
         max_len=20,
         epochs=3,
         start=START,
@@ -148,7 +148,7 @@ def process_input(text, tokenizer, max_len):
     return pad_sequences([tokenized_input], maxlen=max_len - 1)
 
 
-def generate_text(input_text, model, idx_to_words, tokenizer, max_len, n=7, temp=1.0):
+def generate_text(input_text, model, idx_to_words, tokenizer, max_len, n=7, temp=1.0, min_len=1):
     """Takes some input text and feeds it to the model (after processing it).
     Then, samples a next word and feeds it back into the model until the end
     token is produced.
@@ -167,6 +167,8 @@ def generate_text(input_text, model, idx_to_words, tokenizer, max_len, n=7, temp
 
     while True:
         preds = model.predict(tokenized_input, verbose=0)[0]
+        if sent.count(' ') < min_len:
+            preds[2] = 0.0
         pred_idx = sample(preds, temp=temp)
         pred_word = idx_to_words[pred_idx]
         print("pred_idx: ", pred_idx, "pred_word: ", pred_word)
