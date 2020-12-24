@@ -1,20 +1,21 @@
 from dataclasses import dataclass
 
+import nltk
 import numpy as np
 import pandas as pd
 from keras.layers import Dense, Bidirectional, Embedding, LSTM
 from keras.layers import SpatialDropout1D
 from keras.models import Sequential
+from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils import to_categorical
 
-START = '÷'
-END = '■'
-
 
 @dataclass
 class Parameters:
+    model_name: str
+    nrows: int
     max_features: int
     max_len: int
     epochs: int
@@ -24,11 +25,13 @@ class Parameters:
 
 def get_parameters():
     return Parameters(
-        max_features=10,
+        model_name='model',
+        nrows=200000,
+        max_features=3500,
         max_len=20,
         epochs=3,
-        start=START,
-        end=END
+        start='÷',
+        end='■'
     )
 
 
@@ -36,7 +39,7 @@ def kek():
     lol = 5
 
 
-def build_model(epochs, max_features, X, Y):
+def create_model(max_features):
     model = Sequential()
 
     # Embedding and GRU
@@ -46,23 +49,44 @@ def build_model(epochs, max_features, X, Y):
 
     # Output layer
     model.add(Dense(max_features, activation='softmax'))
-
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    model.fit(X, Y, epochs=epochs, batch_size=128, verbose=1)
-
-    model.save_weights('model{}.h5'.format(epochs))
-    model.evaluate(X, Y)
     return model
 
 
-def main():
-    raw_data = read_data()
-    print("raw data:\n")
-    print(raw_data)
+def build_model(name, epochs, max_features, X, Y):
+    model = create_model(max_features)
 
-    # formatted_data = format_data(raw_data, max_features, max_len)
-    # print("formatted data:\n")
-    # print(formatted_data)
+    model.fit(X, Y, epochs=epochs, batch_size=128, verbose=1, validation_split=0.2)
+
+    model.save(f'{name}.h5')
+    return model
+    # model.evaluate(X, Y)
+
+
+def read_model(name):
+    model = load_model(f'{name}.h5')
+    return model
+
+
+def read_model_weights(name, model):
+    model.load_weights(f'{name}.h5')
+
+
+def main():
+    ref = ['lol', 'kek', 'cheburek', 'z', 'z,', 'z']
+    hyp1 = ['lol', 'lul', 'cheburek', 'z', 'z,', 'z']
+    hyp2 = ['lol', 'kuk', 'cheburek', 'z', 'z,', 'z']
+    hyp3 = ['lol', 'kuk', 'cheburek', 'z', 'z,', 'z']
+
+    bleu1 = nltk.translate.bleu_score.sentence_bleu([ref], hyp1)
+    bleu2 = nltk.translate.bleu_score.sentence_bleu([ref], hyp2)
+    bleu3 = nltk.translate.bleu_score.sentence_bleu([ref], hyp3)
+    bleu4 = nltk.translate.bleu_score.sentence_bleu([ref, hyp3], hyp3)
+
+    print("bleu1:", bleu1, '\n')
+    print("bleu2:", bleu2, '\n')
+    print("bleu3:", bleu3, '\n')
+    print("bleu4:", bleu4, '\n')
 
 
 def create_idx_to_words(tokenizer):
@@ -75,19 +99,19 @@ def create_idx_to_words(tokenizer):
     return idx_to_words
 
 
-def read_data():
-    dataset = pd.read_csv('../generator/dataset/dataset.csv', delimiter=',')
+def read_data(nrows):
+    dataset = pd.read_csv('../generator/dataset/dataset.csv', delimiter=',', nrows=nrows)
     data = dataset.drop(['publish_date'], axis=1).rename(columns={'headline_text': 'headline'})
     return data
 
 
-def format_data(raw_data, max_features, maxlen, shuffle=False):
-    data = raw_data.copy()
+def format_data(raw_data, max_features, maxlen, start, end, shuffle=False,):
+    data = raw_data.copy(deep=True)
     if shuffle:
         data = data.sample(frac=1).reset_index(drop=True)
 
         # Add start and end tokens
-    data['headline'] = START + ' ' + data['headline'].str.lower() + ' ' + END
+    data['headline'] = start + ' ' + data['headline'].str.lower() + ' ' + end
 
     text = data['headline']
 
@@ -110,7 +134,7 @@ def format_data(raw_data, max_features, maxlen, shuffle=False):
     X = pad_sequences(X, maxlen=maxlen)
     Y = to_categorical(Y, num_classes=max_features)
 
-    return X, Y, tokenizer
+    return X, Y, tokenizer, text
 
 
 def sample(preds, temp=1.0):
@@ -128,27 +152,13 @@ def sample(preds, temp=1.0):
     return np.argmax(probs)
 
 
-# def sample(softmax, temp=1.0):
-#     EPSILON = 10e-16 # to avoid taking the log of zero
-#     #print(preds)
-#     (np.array(softmax) + EPSILON).astype('float64')
-#     preds = np.log(softmax) / temp
-#     #print(preds)
-#     exp_preds = np.exp(preds)
-#     #print(exp_preds)
-#     preds = exp_preds / np.sum(exp_preds)
-#     #print(preds)
-#     probas = np.random.multinomial(1, preds, 1)
-#     return probas[0]
-
-
 def process_input(text, tokenizer, max_len):
     """Tokenize and pad input text"""
     tokenized_input = tokenizer.texts_to_sequences([text])[0]
     return pad_sequences([tokenized_input], maxlen=max_len - 1)
 
 
-def generate_text(input_text, model, idx_to_words, tokenizer, max_len, n=7, temp=1.0, min_len=1):
+def generate_text(input_text, model, idx_to_words, tokenizer, max_len, end, n=7, temp=1.0,):
     """Takes some input text and feeds it to the model (after processing it).
     Then, samples a next word and feeds it back into the model until the end
     token is produced.
@@ -167,18 +177,16 @@ def generate_text(input_text, model, idx_to_words, tokenizer, max_len, n=7, temp
 
     while True:
         preds = model.predict(tokenized_input, verbose=0)[0]
-        if sent.count(' ') < min_len:
-            preds[2] = 0.0
+
         pred_idx = sample(preds, temp=temp)
         pred_word = idx_to_words[pred_idx]
         print("pred_idx: ", pred_idx, "pred_word: ", pred_word)
-        if pred_word == END:
+
+        if pred_word == end:
             print("return sent: ", sent)
             return sent
 
         sent += ' ' + pred_word
-        #         print(sent)
-        #         tokenized_input = process_input(sent[-n:])
         tokenized_input = process_input(sent, tokenizer, max_len)
 
 
