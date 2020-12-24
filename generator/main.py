@@ -34,11 +34,6 @@ def get_parameters():
         end='■'
     )
 
-
-def kek():
-    lol = 5
-
-
 def create_model(max_features):
     model = Sequential()
 
@@ -60,7 +55,7 @@ def build_model(name, epochs, max_features, X, Y):
 
     model.save(f'{name}.h5')
     return model
-    # model.evaluate(X, Y)
+
 
 
 def read_model(name):
