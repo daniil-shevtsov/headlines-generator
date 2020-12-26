@@ -179,7 +179,7 @@ def generate_text(input_text, model, idx_to_words, tokenizer, max_len, end, n=7,
 
         if pred_word == end:
             print("return sent: ", sent)
-            return sent
+            return sent[2:] # the first two elements are '÷ '
 
         sent += ' ' + pred_word
         tokenized_input = process_input(sent, tokenizer, max_len)
