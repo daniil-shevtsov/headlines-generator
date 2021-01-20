@@ -4,3 +4,4 @@ jupyter
 tensorflow
 bleu
 nltk
+git+git://github.com/Maluuba/nlg-eval@master#egg=nlgeval

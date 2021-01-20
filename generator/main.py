@@ -34,6 +34,7 @@ def get_parameters():
         end='■'
     )
 
+
 def create_model(max_features):
     model = Sequential()
 
@@ -55,7 +56,6 @@ def build_model(name, epochs, max_features, X, Y):
 
     model.save(f'{name}.h5')
     return model
-
 
 
 def read_model(name):
@@ -100,7 +100,7 @@ def read_data(nrows):
     return data
 
 
-def format_data(raw_data, max_features, maxlen, start, end, shuffle=False,):
+def format_data(raw_data, max_features, maxlen, start, end, shuffle=False, ):
     data = raw_data.copy(deep=True)
     if shuffle:
         data = data.sample(frac=1).reset_index(drop=True)
@@ -153,7 +153,7 @@ def process_input(text, tokenizer, max_len):
     return pad_sequences([tokenized_input], maxlen=max_len - 1)
 
 
-def generate_text(input_text, model, idx_to_words, tokenizer, max_len, end, n=7, temp=1.0,):
+def generate_text(input_text, model, idx_to_words, tokenizer, max_len, end, n=7, temp=1.0, ):
     """Takes some input text and feeds it to the model (after processing it).
     Then, samples a next word and feeds it back into the model until the end
     token is produced.
@@ -175,11 +175,11 @@ def generate_text(input_text, model, idx_to_words, tokenizer, max_len, end, n=7,
 
         pred_idx = sample(preds, temp=temp)
         pred_word = idx_to_words[pred_idx]
-        print("pred_idx: ", pred_idx, "pred_word: ", pred_word)
+        # print("pred_idx: ", pred_idx, "pred_word: ", pred_word)
 
         if pred_word == end:
-            print("return sent: ", sent)
-            return sent[2:] # the first two elements are '÷ '
+            # print("return sent: ", sent)
+            return sent[2:]  # the first two elements are '÷ '
 
         sent += ' ' + pred_word
         tokenized_input = process_input(sent, tokenizer, max_len)
